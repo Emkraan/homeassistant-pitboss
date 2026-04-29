@@ -58,12 +58,18 @@
 
 ### HACS (Recommended)
 
-1. Open HACS in Home Assistant
-2. Go to **Integrations** → **⋮** → **Custom repositories**
-3. Add `https://github.com/Emkraan/homeassistant-pitboss` as an **Integration**
-4. Search for **PitBoss** and install
-5. Restart Home Assistant
-6. Go to **Settings → Devices & Services → Add Integration** and search for **PitBoss**
+Click the badge below to open HACS and add this repository in one step:
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Emkraan&repository=homeassistant-pitboss&category=integration)
+
+Or manually:
+
+1. Open **HACS → Integrations**.
+2. Click the menu (⋮) → **Custom repositories**.
+3. Add `https://github.com/Emkraan/homeassistant-pitboss` — category: **Integration**.
+4. Search for **PitBoss** and click **Download**.
+5. Restart Home Assistant.
+6. Go to **Settings → Devices & Services → Add Integration** and search for **PitBoss**.
 
 ### Manual
 
