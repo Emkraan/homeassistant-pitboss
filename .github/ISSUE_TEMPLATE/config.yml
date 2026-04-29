@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/Emkraan/homeassistant-pitboss/discussions
+    about: Questions, ideas, and general discussion
+  - name: PitBoss Support
+    url: https://pitboss-grills.com/pages/contact-us
+    about: Hardware issues, warranty, and manufacturer support
+  - name: PitBoss Protocol Reference
+    url: https://github.com/dknowles2/pytboss
+    about: Protocol documentation and upstream library
