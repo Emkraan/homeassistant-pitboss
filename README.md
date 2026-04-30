@@ -9,7 +9,11 @@
   [![License](https://img.shields.io/github/license/Emkraan/homeassistant-pitboss)](LICENSE)
 </div>
 
-> **Unofficial integration.** Not affiliated with or endorsed by Dansons Inc. or PitBoss.
+<div align="center">
+
+⚠️ 🚨 **This is an unofficial integration and is not affiliated with or endorsed by Dansons Inc. or PitBoss.** 🚨 ⚠️
+
+</div>
 
 ---
 
