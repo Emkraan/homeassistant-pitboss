@@ -1,12 +1,12 @@
 # Changelog
 
-## v0.1.0-beta.1 (2026-05-01)
+## 2026.5.0 (2026-05-01)
 
-### Initial Beta Release
+Initial release.
 
 - WiFi (WebSocket) and Bluetooth LE connection support
 - Auto-discovery of BLE devices
-- Full model support for all PitBoss and Louisiana Grills pellet grills via vendored `grills.json`
+- Full model support for all PitBoss and Louisiana Grills pellet grills
 - Climate entity for grill temperature control (set temperature, turn off)
 - Sensor entities: grill temp, grill set temp, smoker temp, probes 1–4, probe targets, recipe step/time
 - Binary sensor entities: module on, fan/igniter/auger state, all error conditions, no pellets
