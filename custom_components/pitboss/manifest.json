@@ -1,7 +1,7 @@
 {
   "domain": "pitboss",
   "name": "PitBoss",
-  "version": "2026.5.0",
+  "version": "2026.5.0-beta",
   "config_flow": true,
   "documentation": "https://github.com/Emkraan/homeassistant-pitboss",
   "issue_tracker": "https://github.com/Emkraan/homeassistant-pitboss/issues",
