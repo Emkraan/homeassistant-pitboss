@@ -1,8 +1,8 @@
 # Changelog
 
-## 2026.4.29
+## v0.1.0-beta.1 (2026-05-01)
 
-### Initial Release
+### Initial Beta Release
 
 - WiFi (WebSocket) and Bluetooth LE connection support
 - Auto-discovery of BLE devices
