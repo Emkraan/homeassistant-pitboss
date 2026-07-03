@@ -1,12 +1,18 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/Emkraan/homeassistant-pitboss/main/.github/homeassistant-pitboss.png" alt="PitBoss" width="120" />
   <h1>PitBoss for Home Assistant</h1>
-  <p>Local-only Home Assistant integration for PitBoss pellet grills — WiFi and Bluetooth LE.</p>
+  <p>Home Assistant integration for PitBoss pellet grills: Bluetooth LE (fully local) and WiFi (via the Dansons WebSocket relay).</p>
 
-  [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
-  [![Release](https://img.shields.io/github/v/release/Emkraan/homeassistant-pitboss)](https://github.com/Emkraan/homeassistant-pitboss/releases)
-  [![HA Version](https://img.shields.io/badge/HA-2024.1.0%2B-blue)](https://www.home-assistant.io)
-  [![License](https://img.shields.io/github/license/Emkraan/homeassistant-pitboss)](LICENSE)
+  [![HACS](https://img.shields.io/badge/HACS-Custom-orange?style=for-the-badge)](https://hacs.xyz)
+  [![Release](https://img.shields.io/github/v/release/Emkraan/homeassistant-pitboss?style=for-the-badge)](https://github.com/Emkraan/homeassistant-pitboss/releases)
+  [![HA Version](https://img.shields.io/badge/HA-2024.1.0%2B-blue?style=for-the-badge)](https://www.home-assistant.io)
+  [![License](https://img.shields.io/github/license/Emkraan/homeassistant-pitboss?style=for-the-badge)](LICENSE)
+</div>
+
+<div align="center">
+
+> Headless integration: Authentication / Roles / Audit sections are N/A.
+
 </div>
 
 <div align="center">
@@ -33,17 +39,16 @@
 
 ## Features
 
-- **100% local** — no cloud, no account required
-- **WiFi (WebSocket)** connection for full range — preferred when available
-- **Bluetooth LE** connection for proximity use — primary fallback
+- **Local Bluetooth LE** control: BLE talks straight to the grill with no cloud and no account required
+- **WiFi (WebSocket)** connection for full range: preferred when available, relayed through the Dansons cloud socket (see [How It Works](#how-it-works))
 - **Auto-discovery** of BLE devices on the HA Bluetooth integration
 - **Full model support** for all PitBoss and Louisiana Grills pellet grill models
-- **Climate entity** — monitor and set grill temperature, shut down remotely
-- **Probe sensors** — up to 4 meat probes with target temperature control
-- **Error monitoring** — probe errors, fan/igniter/auger faults, pellet level, ErL
-- **Recipe tracking** — current step and time remaining
+- **Climate entity**: monitor and set grill temperature, shut down remotely
+- **Probe sensors**: up to 4 meat probes with target temperature control
+- **Error monitoring**: probe errors, fan/igniter/auger faults, pellet level, ErL
+- **Recipe tracking**: current step and time remaining
 - **Primer motor and grill light** control (model-dependent)
-- **Reliable reconnection** — exponential backoff with proper timeout handling
+- **Reliable reconnection**: exponential backoff with proper timeout handling
 
 ---
 
@@ -54,6 +59,7 @@
 | Home Assistant | 2024.1.0 or newer |
 | HACS | 1.34.0 or newer |
 | Connection | WiFi grill ID **or** Bluetooth LE adapter on your HA host |
+| WiFi path | Reaches the grill through the Dansons WebSocket relay (`socket.dansonscorp.com`); HA needs outbound internet |
 | Grill | Any PitBoss or Louisiana Grills WiFi-enabled pellet grill |
 
 ---
@@ -68,18 +74,18 @@ Click the badge below to open HACS and add this repository in one step:
 
 Or manually:
 
-1. Open **HACS → Integrations**.
-2. Click the menu (⋮) → **Custom repositories**.
-3. Add `https://github.com/Emkraan/homeassistant-pitboss` — category: **Integration**.
+1. Open **HACS -> Integrations**.
+2. Click the menu (⋮) -> **Custom repositories**.
+3. Add `https://github.com/Emkraan/homeassistant-pitboss`, category: **Integration**.
 4. Search for **PitBoss** and click **Download**.
 5. Restart Home Assistant.
-6. Go to **Settings → Devices & Services → Add Integration** and search for **PitBoss**.
+6. Go to **Settings -> Devices & Services -> Add Integration** and search for **PitBoss**.
 
 ### Manual
 
 1. Copy the `custom_components/pitboss` folder into your HA `custom_components` directory
 2. Restart Home Assistant
-3. Add the integration via **Settings → Devices & Services**
+3. Add the integration via **Settings -> Devices & Services**
 
 ---
 
@@ -89,9 +95,9 @@ During setup you will be asked to choose a connection type:
 
 ### WiFi (WebSocket)
 
-- **Grill ID** — the device name as registered in the PitBoss app (e.g. `PBL-MyGrill`). Find it in the app under device settings or your router's DHCP client list.
-- **Grill Model** — select your exact model from the dropdown. This determines which entities are created and what temperature ranges are enforced.
-- **Password** (optional) — if you have set a grill password in the app, enter it here. Leave blank otherwise.
+- **Grill ID**: the device name as registered in the PitBoss app (e.g. `PBL-MyGrill`). Find it in the app under device settings or your router's DHCP client list.
+- **Grill Model**: select your exact model from the dropdown. This determines which entities are created and what temperature ranges are enforced.
+- **Password** (optional): if you have set a grill password in the app, enter it here. Leave blank otherwise.
 
 ### Bluetooth LE
 
@@ -109,9 +115,9 @@ During setup you will be asked to choose a connection type:
 | Grill Temperature | Current grill grate temperature | °F / °C |
 | Grill Set Temperature | Current grill target setpoint | °F / °C |
 | Smoker Temperature | Firebox/smoker actual temperature | °F / °C |
-| Probe 1–4 Temperature | Current meat probe readings | °F / °C |
-| Probe 1–2 Target | Probe target temperatures | °F / °C |
-| Recipe Step | Current recipe step number | — |
+| Probe 1 to 4 Temperature | Current meat probe readings | °F / °C |
+| Probe 1 to 2 Target | Probe target temperatures | °F / °C |
+| Recipe Step | Current recipe step number | n/a |
 | Recipe Time Remaining | Seconds remaining in current recipe step | s |
 
 ### Binary Sensors
@@ -122,7 +128,7 @@ During setup you will be asked to choose a connection type:
 | Fan Running | Combustion fan state |
 | Igniter On | Hot rod / igniter state |
 | Auger Running | Auger motor state |
-| Probe 1–3 Error | Meat probe fault |
+| Probe 1 to 3 Error | Meat probe fault |
 | High Temp Error | Over-temperature fault |
 | Fan Error | Fan fault |
 | Igniter Error | Igniter fault |
@@ -134,7 +140,7 @@ During setup you will be asked to choose a connection type:
 
 | Entity | Description |
 |---|---|
-| Grill | Set target temperature or turn grill off. Remote power-on is not supported — use physical controls. |
+| Grill | Set target temperature or turn grill off. Remote power-on is not supported, use physical controls. |
 
 ### Number
 
@@ -184,7 +190,7 @@ trigger:
 action:
   - service: notify.mobile_app_your_phone
     data:
-      message: "PitBoss pellet hopper is empty — refill needed!"
+      message: "PitBoss pellet hopper is empty, refill needed!"
 ```
 
 ### Shut down grill after cook timer
@@ -213,7 +219,7 @@ action:
 |---|---|---|
 | Integration stuck on "Configuring" | Grill off or not reachable at HA startup | Power on the grill and restart the integration |
 | Entities unavailable after grill restart | BLE/WiFi reconnect in progress | Wait ~30 seconds; coordinator will reconnect automatically |
-| WiFi connection drops frequently | Grill firmware enters slow-push mode | Ensure HA can reach the WebSocket server; integration wakes fast mode on startup |
+| WiFi connection drops frequently | Grill firmware enters slow-push mode | Ensure HA has outbound access to the Dansons relay; integration wakes fast mode on startup |
 | Wrong temperature unit | `isFahrenheit` flag from grill | Match the unit setting on the grill's physical display |
 | BLE device not discovered | Grill out of range or HA Bluetooth not configured | Ensure HA has a Bluetooth adapter; move grill closer |
 | Commands timeout | Grill busy or BLE congestion | Will retry on next interaction; check logs for errors |
@@ -232,13 +238,13 @@ logger:
 
 ## How It Works
 
-This integration communicates directly with the grill over your local network or Bluetooth — no cloud required.
+The integration talks to the grill's control board over one of two transports. BLE is fully local. The WiFi path relays through a Dansons-hosted cloud socket, the same relay the official PitBoss app uses; it is not a direct LAN connection.
 
-**WiFi (WebSocket):** The grill firmware runs [Mongoose OS](https://mongoose-os.com) on an ESP32. It connects to a Dansons WebSocket relay at `wss://socket.dansonscorp.com/to/<grill_id>` and pushes state updates every 5 seconds when active. This integration connects to the same relay endpoint and receives the same push frames. All grill control goes through `PB.SendMCUCommand` RPCs, which forward raw hex commands to the MCU control board via UART.
+**WiFi (WebSocket):** The grill firmware runs [Mongoose OS](https://mongoose-os.com) on an ESP32. It connects out to the Dansons WebSocket relay at `wss://socket.dansonscorp.com/to/<grill_id>` and pushes state updates every 5 seconds when active. This integration connects to the same relay endpoint (`socket.dansonscorp.com`, defined in `pytboss/wss.py`) and receives the same push frames, so the WiFi path depends on Dansons cloud availability and HA outbound internet. All grill control goes through `PB.SendMCUCommand` RPCs, which forward raw hex commands to the MCU control board via UART.
 
-**Bluetooth LE:** The grill also exposes the Mongoose OS BLE RPC GATT service. Commands use the same JSON RPC structure sent over GATT write characteristics. State updates are broadcast via the debug log GATT notification channel as hex-encoded frames.
+**Bluetooth LE:** The grill also exposes the Mongoose OS BLE RPC GATT service. Commands use the same JSON RPC structure sent over GATT write characteristics. State updates are broadcast via the debug log GATT notification channel as hex-encoded frames. This path involves no cloud.
 
-**State parsing:** The grill sends two frame types — `FE0B` (status: booleans, errors, recipe) and `FE0C` (temperatures: grill, smoker, probes). Both are decoded directly in Python — no JavaScript engine required (the original library used `dukpy` to evaluate JS from the cloud API; all parsing is ported to native Python here with the `grills.json` model database vendored locally).
+**State parsing:** The grill sends two frame types: `FE0B` (status: booleans, errors, recipe) and `FE0C` (temperatures: grill, smoker, probes). Parsing and command building are driven by per-model JavaScript functions stored in the vendored `pytboss/grills.json` database. These functions are evaluated at runtime with the `dukpy` JavaScript engine (`from dukpy import evaljs` in `pytboss/grills.py`; `dukpy==0.3.1` in `manifest.json`). The model database is vendored locally, so parsing does not require a live cloud API call, but the `dukpy` dependency and the JS evaluation path are still in use.
 
 ---
 
