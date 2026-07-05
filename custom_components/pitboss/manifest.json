@@ -1,18 +1,18 @@
 {
   "domain": "pitboss",
   "name": "PitBoss",
-  "version": "2026.5.0-beta",
-  "config_flow": true,
-  "documentation": "https://github.com/Emkraan/homeassistant-pitboss",
-  "issue_tracker": "https://github.com/Emkraan/homeassistant-pitboss/issues",
-  "integration_type": "device",
-  "iot_class": "local_push",
-  "dependencies": ["bluetooth"],
   "bluetooth": [
     {"service_uuid": "5f6d4f53-5f52-5043-5f53-56435f49445f"},
     {"service_uuid": "5f6d4f53-5f44-4247-5f53-56435f49445f"}
   ],
-  "requirements": ["dukpy==0.3.1", "bleak-retry-connector>=3.4.0"],
   "codeowners": ["@Emkraan"],
-  "loggers": ["pitboss"]
+  "config_flow": true,
+  "dependencies": ["bluetooth"],
+  "documentation": "https://github.com/Emkraan/homeassistant-pitboss",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/Emkraan/homeassistant-pitboss/issues",
+  "loggers": ["pitboss"],
+  "requirements": ["dukpy==0.3.1", "bleak-retry-connector>=3.4.0"],
+  "version": "2026.5.0-beta"
 }
