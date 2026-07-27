@@ -13,6 +13,6 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/Emkraan/homeassistant-pitboss/issues",
   "loggers": ["pitboss"],
-  "requirements": ["dukpy==0.3.1", "bleak-retry-connector>=3.4.0"],
+  "requirements": ["dukpy==0.5.1", "bleak-retry-connector>=3.4.0"],
   "version": "2026.5.0-beta"
 }
