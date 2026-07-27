@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.7.0-beta (2026-07-27)
+
+- Bumped `dukpy` from 0.3.1 to 0.5.1. 0.3.1 has no prebuilt wheel for Python 3.13/3.14, so HA installs on those versions fell back to a source build that failed and blocked setup with a config flow 500. 0.5.1 ships wheels for those Python versions on the same Duktape engine and `evaljs` API, so behavior is unchanged.
+
 ## 2026.5.0 (2026-05-01)
 
 Initial release.
