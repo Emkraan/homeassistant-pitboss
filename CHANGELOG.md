@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.8.0-beta (2026-08-05)
+
+- Fixed: WiFi (WebSocket) config flow crashed immediately after setup with `KeyError: 'grill_id'` because the grill ID was used to set the config entry's unique ID but never saved to the entry's data dictionary. The coordinator now has access to it on first load.
+
 ## 2026.7.0-beta (2026-07-27)
 
 - Bumped `dukpy` from 0.3.1 to 0.5.1. 0.3.1 has no prebuilt wheel for Python 3.13/3.14, so HA installs on those versions fell back to a source build that failed and blocked setup with a config flow 500. 0.5.1 ships wheels for those Python versions on the same Duktape engine and `evaljs` API, so behavior is unchanged.
