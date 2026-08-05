@@ -11,7 +11,6 @@ from homeassistant.components.bluetooth import (
     async_discovered_service_info,
 )
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
-from homeassistant.const import CONF_ADDRESS
 from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
@@ -30,7 +29,7 @@ from .const import (
     PROTOCOL_WSS,
 )
 from .pytboss.ble import SERVICE_RPC
-from .pytboss.grills import UNSUPPORTED_MODELS, get_grills
+from .pytboss.grills import get_grills
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +47,7 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._discovered_devices: dict[str, str] = {}
         self._ble_address: str | None = None
+        self._grill_id: str | None = None
         self._grill_model: str | None = None
         self._protocol: str = PROTOCOL_WSS
 
@@ -107,10 +107,9 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
             grill_id = user_input[CONF_GRILL_ID].strip()
             await self.async_set_unique_id(f"wss_{grill_id}")
             self._abort_if_unique_id_configured()
+            self._grill_id = grill_id
             self._grill_model = user_input[CONF_GRILL_MODEL]
-            return await self.async_step_password(
-                prefill={CONF_GRILL_ID: grill_id, CONF_GRILL_MODEL: self._grill_model}
-            )
+            return await self.async_step_password()
 
         return self.async_show_form(
             step_id="wifi",
@@ -193,7 +192,6 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_password(
         self,
         user_input: dict[str, Any] | None = None,
-        prefill: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
         """Optionally collect the grill password."""
         if user_input is not None:
@@ -214,7 +212,7 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
             CONF_PASSWORD: password,
         }
         if self._protocol == PROTOCOL_WSS:
-            pass
+            data[CONF_GRILL_ID] = self._grill_id
         else:
             data[CONF_ADDRESS] = self._ble_address
 
