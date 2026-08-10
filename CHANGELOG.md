@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026.8.10 (2026-08-10)
+
+Promote from beta to stable. Includes the grill_id fix from 2026.8.0-beta plus CI and tooling compliance updates.
+
+### Fixed
+- WiFi (WebSocket) config flow crashed immediately after setup with `KeyError: 'grill_id'` — the grill ID is now saved to the config entry's data dictionary so the coordinator has access to it on first load.
+
+### Changed
+- Migrated from Dependabot to Renovate for dependency updates.
+- CI now uses the shared `ha-shared-workflows` reusable workflow.
+- Exempted `renovate[bot]` from the readme-freshness gate.
+
 ## 2026.8.0-beta (2026-08-05)
 
 - Fixed: WiFi (WebSocket) config flow crashed immediately after setup with `KeyError: 'grill_id'` because the grill ID was used to set the config entry's unique ID but never saved to the entry's data dictionary. The coordinator now has access to it on first load.
