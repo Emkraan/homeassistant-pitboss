@@ -5,7 +5,7 @@
 Promote from beta to stable. Includes the grill_id fix from 2026.8.0-beta plus CI and tooling compliance updates.
 
 ### Fixed
-- WiFi (WebSocket) config flow crashed immediately after setup with `KeyError: 'grill_id'` — the grill ID is now saved to the config entry's data dictionary so the coordinator has access to it on first load.
+- WiFi (WebSocket) config flow crashed immediately after setup with `KeyError: 'grill_id'` - the grill ID is now saved to the config entry's data dictionary so the coordinator has access to it on first load.
 
 ### Changed
 - Migrated from Dependabot to Renovate for dependency updates.
@@ -28,7 +28,7 @@ Initial release.
 - Auto-discovery of BLE devices
 - Full model support for all PitBoss and Louisiana Grills pellet grills
 - Climate entity for grill temperature control (set temperature, turn off)
-- Sensor entities: grill temp, grill set temp, smoker temp, probes 1–4, probe targets, recipe step/time
+- Sensor entities: grill temp, grill set temp, smoker temp, probes 1-4, probe targets, recipe step/time
 - Binary sensor entities: module on, fan/igniter/auger state, all error conditions, no pellets
 - Number entities: probe 1 and probe 2 target temperatures (model-dependent)
 - Switch entity: primer motor (model-dependent)
@@ -38,5 +38,5 @@ Initial release.
   - RPC futures cancelled on disconnect (no more hanging commands)
   - Exceptions in message handlers caught and logged, not silently dropped
   - JS parse errors isolated per message, not crashing the session
-  - Stale data detection — refreshes state if no push received in 5 minutes
+  - Stale data detection - refreshes state if no push received in 5 minutes
   - Proper availability chain for all entities
