@@ -6,19 +6,29 @@ import asyncio
 import inspect
 import json
 import logging
-from time import time
+from time import monotonic
 from typing import Awaitable, Callable
 
 from .codec import encode, timed_key
 from .config import Config
-from .exceptions import UnsupportedOperation
+from .exceptions import RPCError, UnsupportedOperation
 from .fs import FileSystem
 from .grills import Grill, StateDict, get_grill
 from .transport import Transport
 
 _LOGGER = logging.getLogger(__name__)
 
-_UPTIME_CACHE_TTL = 5
+_UPTIME_TTL = 60
+"""Seconds before the cached uptime is re-read rather than extrapolated."""
+
+_UPTIME_LEAD = 1.0
+"""Seconds to run ahead of the grill's clock.
+
+The firmware accepts a password key built from its current 10 second uptime
+bucket or the next one, never the previous one. Running slightly ahead absorbs
+relay latency; running behind draws spurious Unauthorized errors near bucket
+boundaries.
+"""
 _DEFAULT_PING_TIMEOUT = 10.0
 
 StateCallback = Callable[[StateDict], Awaitable[None] | None]
@@ -45,7 +55,7 @@ class PitBoss:
         self._vdata_callbacks: list[VDataCallback] = []
         self._state = StateDict()
         self._last_uptime: float | None = None
-        self._last_uptime_check: int | None = None
+        self._last_uptime_check: float = 0.0
         self._uptime_lock = asyncio.Lock()
 
     def is_connected(self) -> bool:
@@ -88,7 +98,7 @@ class PitBoss:
                     state.update(new_state)
 
             if not state:
-                _LOGGER.debug("Could not parse state payload — ignoring")
+                _LOGGER.debug("Could not parse state payload, ignoring")
                 return
 
             async with self._lock:
@@ -120,17 +130,29 @@ class PitBoss:
         except Exception as ex:
             _LOGGER.warning("Error processing vdata payload: %s", ex, exc_info=True)
 
-    async def _authenticate(self, params: dict) -> dict:
-        if self._password:
-            params["psw"] = encode(
-                self._password, key=timed_key(await self.get_uptime())
-            ).hex()
-        return params
+    async def _authenticate(self, params: dict, *, refresh: bool = False) -> dict:
+        if not self._password:
+            return params
+        uptime = await self.get_uptime(refresh=refresh)
+        psw = encode(self._password, key=timed_key(uptime)).hex()
+        return {**params, "psw": psw}
+
+    async def _send_authenticated(self, method: str, params: dict) -> dict:
+        """Send an authenticated RPC, retrying once on a fresh uptime if rejected."""
+        try:
+            return await self._conn.send_command(
+                method, await self._authenticate(params)
+            )
+        except RPCError as ex:
+            if not self._password or "unauthorized" not in str(ex).lower():
+                raise
+            _LOGGER.debug("%s rejected, retrying with a fresh uptime", method)
+            return await self._conn.send_command(
+                method, await self._authenticate(params, refresh=True)
+            )
 
     async def _send_hex_command(self, cmd: str) -> dict:
-        return await self._conn.send_command(
-            "PB.SendMCUCommand", await self._authenticate({"command": cmd})
-        )
+        return await self._send_authenticated("PB.SendMCUCommand", {"command": cmd})
 
     async def _send_command(self, slug: str, *args) -> dict:
         cmd = self.spec.control_board.commands[slug]
@@ -172,9 +194,7 @@ class PitBoss:
         return await self._send_command("turn-primer-motor-off")
 
     async def get_state(self) -> StateDict:
-        resp = await self._conn.send_command(
-            "PB.GetState", await self._authenticate({})
-        )
+        resp = await self._send_authenticated("PB.GetState", {})
         status = self.spec.control_board.parse_status(resp.get("sc_11", "")) or {}
         status.update(
             self.spec.control_board.parse_temperatures(resp.get("sc_12", "")) or {}
@@ -190,28 +210,33 @@ class PitBoss:
         )
 
     async def set_wifi_update_frequency(self, fast: int = 5, slow: int = 60) -> dict:
-        return await self._conn.send_command(
-            "PB.SetWifiUpdateFrequency",
-            await self._authenticate({"slow": slow, "fast": fast}),
+        return await self._send_authenticated(
+            "PB.SetWifiUpdateFrequency", {"slow": slow, "fast": fast}
         )
 
     async def wake_wifi(self) -> dict:
         """Triggers 5 minutes of fast (5s) WiFi state pushes."""
-        return await self._conn.send_command(
-            "PB.WiFiAwakeWDT", await self._authenticate({})
-        )
+        return await self._send_authenticated("PB.WiFiAwakeWDT", {})
 
-    async def get_uptime(self) -> float:
+    async def get_uptime(self, *, refresh: bool = False) -> float:
+        """Device uptime in seconds, read once and then extrapolated."""
         async with self._uptime_lock:
-            now = int(time())
+            now = monotonic()
             if (
-                not self._last_uptime_check
-                or now - self._last_uptime_check > _UPTIME_CACHE_TTL
+                refresh
+                or self._last_uptime is None
+                or now - self._last_uptime_check > _UPTIME_TTL
             ):
                 result = await self._conn.send_command("PB.GetTime", {})
-                self._last_uptime = result.get("time", 0.0)
-                self._last_uptime_check = now
-            return self._last_uptime or 0.0
+                uptime = result.get("time") if isinstance(result, dict) else None
+                if isinstance(uptime, (int, float)):
+                    self._last_uptime = float(uptime)
+                    # Pre-request timestamp on purpose: extrapolation then runs
+                    # ahead of the grill by about one request latency.
+                    self._last_uptime_check = now
+                elif self._last_uptime is None:
+                    return 0.0
+            return self._last_uptime + (now - self._last_uptime_check) + _UPTIME_LEAD
 
     async def ping(self, timeout: float = _DEFAULT_PING_TIMEOUT) -> dict:
         return await self._conn.send_command("RPC.Ping", {}, timeout=timeout)
