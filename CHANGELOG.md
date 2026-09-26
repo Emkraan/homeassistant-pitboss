@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026.9.0-beta (2026-09-26)
+
+### Fixed
+- Setting the grill temperature failed silently. The grill was rejecting commands as `Unauthorized` (wrong stored password) and the error only reached the log. Failures now show in the UI with a clear message.
+- Every entity was named after the device (e.g. all sensors showed as "HotRod Temperature") because the integration shipped no translations. All entities now have proper names.
+- The coordinator connected twice on startup and leaked a WebSocket connection on every ping failure.
+
+### Added
+- Setup validates the password against the grill and refuses a wrong one.
+- Reauthentication when the grill rejects the stored password, and a Reconfigure option to change it.
+- Status sensor (Off, Igniting, Preheating, At temperature, Cooling down, Error) and an aggregate Problem sensor listing active faults.
+- Climate reports heating/idle action, turn-off support, and rounds targets to 5 degrees within the model range.
+- Diagnostics download (password redacted), firmware version and grill ID on the device page.
+- Optimistic updates so new set points appear immediately.
+
+### Changed
+- Fault and component sensors moved to the diagnostic category; probes beyond the model's count, smoke cabinet, and recipe sensors are disabled by default.
+- Probe target duplicate sensors removed (the probe target numbers remain).
+- Minimum Home Assistant version is now 2025.1.0.
+
 ## 2026.8.10 (2026-08-10)
 
 Promote from beta to stable. Includes the grill_id fix from 2026.8.0-beta plus CI and tooling compliance updates.

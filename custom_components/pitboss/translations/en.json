@@ -1,0 +1,190 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect your PitBoss grill",
+        "data": {
+          "protocol": "Connection"
+        }
+      },
+      "wifi": {
+        "title": "WiFi grill",
+        "description": "Enter the grill ID shown in the PitBoss app under grill settings. It looks like PBL-F4CFA2B1E8C4.",
+        "data": {
+          "grill_id": "Grill ID",
+          "grill_model": "Grill model"
+        }
+      },
+      "ble_pick": {
+        "title": "Bluetooth grill",
+        "data": {
+          "address": "Grill"
+        }
+      },
+      "model": {
+        "title": "Grill model",
+        "data": {
+          "grill_model": "Grill model"
+        }
+      },
+      "password": {
+        "title": "Grill password",
+        "description": "The grill password is set in the PitBoss app (grill settings). Leave blank only if the grill has no password. Without the correct password Home Assistant can still read temperatures but cannot change them.",
+        "data": {
+          "password": "Grill password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Grill password rejected",
+        "description": "{grill} rejected the stored password, so temperature changes are failing. The grill password is set in the PitBoss app (grill settings). Leave blank only if the grill has no password. Without the correct password Home Assistant can still read temperatures but cannot change them.",
+        "data": {
+          "password": "Grill password"
+        }
+      },
+      "reconfigure": {
+        "title": "Update grill password",
+        "description": "The grill password is set in the PitBoss app (grill settings). Leave blank only if the grill has no password. Without the correct password Home Assistant can still read temperatures but cannot change them.",
+        "data": {
+          "password": "Grill password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "The grill rejected this password. Check it in the PitBoss app under grill settings.",
+      "cannot_connect": "Could not reach the grill. Make sure it is powered on and online.",
+      "unknown": "Unexpected error, see the Home Assistant log."
+    },
+    "abort": {
+      "already_configured": "This grill is already configured.",
+      "no_devices_found": "No PitBoss grills found over Bluetooth.",
+      "reauth_successful": "Password accepted. Controls are working again.",
+      "reconfigure_successful": "Password updated."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "any_problem": {
+        "name": "Problem"
+      },
+      "module_on": {
+        "name": "Power"
+      },
+      "fan_state": {
+        "name": "Fan"
+      },
+      "igniter_state": {
+        "name": "Igniter"
+      },
+      "auger_state": {
+        "name": "Auger"
+      },
+      "err_probe1": {
+        "name": "Probe 1 error"
+      },
+      "err_probe2": {
+        "name": "Probe 2 error"
+      },
+      "err_probe3": {
+        "name": "Probe 3 error"
+      },
+      "err_high_temp": {
+        "name": "Over-temperature error"
+      },
+      "err_fan": {
+        "name": "Fan error"
+      },
+      "err_igniter": {
+        "name": "Igniter error"
+      },
+      "err_auger": {
+        "name": "Auger error"
+      },
+      "no_pellets": {
+        "name": "Pellets low"
+      },
+      "err_startup": {
+        "name": "Startup failure (ErL)"
+      }
+    },
+    "climate": {
+      "grill": {
+        "name": "Grill"
+      }
+    },
+    "light": {
+      "grill_light": {
+        "name": "Light"
+      }
+    },
+    "number": {
+      "probe1_target": {
+        "name": "Probe 1 target"
+      },
+      "probe2_target": {
+        "name": "Probe 2 target"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "off": "Off",
+          "igniting": "Igniting",
+          "preheating": "Preheating",
+          "at_temperature": "At temperature",
+          "cooling": "Cooling down",
+          "error": "Error"
+        }
+      },
+      "grill_temp": {
+        "name": "Grill temperature"
+      },
+      "grill_set_temp": {
+        "name": "Grill set temperature"
+      },
+      "smoker_temp": {
+        "name": "Smoke cabinet temperature"
+      },
+      "probe1_temp": {
+        "name": "Probe 1"
+      },
+      "probe2_temp": {
+        "name": "Probe 2"
+      },
+      "probe3_temp": {
+        "name": "Probe 3"
+      },
+      "probe4_temp": {
+        "name": "Probe 4"
+      },
+      "recipe_step": {
+        "name": "Recipe step"
+      },
+      "recipe_time": {
+        "name": "Recipe time remaining"
+      }
+    },
+    "switch": {
+      "primer_motor": {
+        "name": "Pellet primer"
+      }
+    }
+  },
+  "exceptions": {
+    "invalid_password": {
+      "message": "The grill rejected the password. Update it under Settings > Devices & services > PitBoss > Reconfigure."
+    },
+    "not_connected": {
+      "message": "The grill is not connected right now."
+    },
+    "command_failed": {
+      "message": "The grill rejected the command: {error}"
+    },
+    "grill_off": {
+      "message": "The grill is off. Start it at the grill, then set the temperature."
+    },
+    "power_on_unsupported": {
+      "message": "PitBoss grills cannot be started remotely. Start it at the grill."
+    }
+  }
+}
