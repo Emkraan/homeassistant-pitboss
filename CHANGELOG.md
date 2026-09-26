@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.9.1-beta (2026-09-26)
+
+### Fixed
+- Commands (set temperature, probe targets, shutdown) intermittently failed with `Unauthorized` even with the correct grill password. The grill checks the password against a key derived from its uptime in 10 second buckets and rejects keys that run behind. The uptime was cached for 5 seconds without being advanced, so over the WiFi relay the key regularly fell into the previous bucket. Uptime is now extrapolated from a single reading with a small lead, and a rejected command is retried once with a freshly read uptime.
+
 ## 2026.9.0-beta (2026-09-26)
 
 ### Fixed
