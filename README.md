@@ -44,6 +44,8 @@
 - **Auto-discovery** of BLE devices on the HA Bluetooth integration
 - **Full model support** for all PitBoss and Louisiana Grills pellet grill models
 - **Climate entity**: monitor and set grill temperature, shut down remotely
+- **Status at a glance**: a single Status sensor (Off, Igniting, Preheating, At temperature, Cooling down, Error) and one Problem sensor that lists active faults
+- **Password checked at setup**, with reauthentication and a Reconfigure option if it changes
 - **Probe sensors**: up to 4 meat probes with target temperature control
 - **Error monitoring**: probe errors, fan/igniter/auger faults, pellet level, ErL
 - **Recipe tracking**: current step and time remaining
@@ -95,7 +97,7 @@ During setup you will be asked to choose a connection type:
 
 ### WiFi (WebSocket)
 
-- **Grill ID**: the device name as registered in the PitBoss app (e.g. `PBL-MyGrill`). Find it in the app under device settings or your router's DHCP client list.
+- **Grill ID**: `PBL-` followed by 12 hex characters (e.g. `PBL-F4CFA2B1E8C4`). Find it in the PitBoss app under grill settings, or as the device hostname in your router's DHCP client list.
 - **Grill Model**: select your exact model from the dropdown. This determines which entities are created and what temperature ranges are enforced.
 - **Password**: the grill password from the PitBoss app (grill settings). Setup checks it against the grill and refuses a wrong one. Without the correct password, temperatures still read but every change (set temperature, probe targets, shutdown) is rejected by the grill.
 
@@ -106,13 +108,13 @@ If the grill rejects the stored password, Home Assistant raises a **Reauthentica
 ### Bluetooth LE
 
 - HA will show a list of discovered PitBoss BLE devices nearby.
-- Select your grill, choose the model, and optionally enter a password.
+- Select your grill, choose the model, and enter the grill password (leave blank only if the grill has none). It is checked against the grill the same way as WiFi.
 
 ---
 
 ## Entities
 
-Names below are shown after the device name (for example `PitBoss PB1100PSC2 Grill temperature`).
+Names below are shown after the device name (for example `PitBoss PB1100PSC2 Grill temperature`). Entity IDs are generated from the same text when the integration is first added, e.g. `sensor.pitboss_pb1100psc2_grill_temperature`. Renaming the device later does not change existing IDs.
 
 ### Sensors
 
@@ -139,7 +141,7 @@ Names below are shown after the device name (for example `PitBoss PB1100PSC2 Gri
 
 | Entity | Description |
 |---|---|
-| Grill | Current and target temperature, heating/idle action, set temperature (rounded to 5 degrees and clamped to the model range), turn off. Remote power-on is not supported by the grill. |
+| Grill | Current and target temperature, heating/idle action, set temperature (rounded to 5 degrees and clamped to the model range), turn off. The grill must already be running to accept a new temperature; remote power-on is not supported by the grill. |
 
 ### Number
 
@@ -154,7 +156,7 @@ Names below are shown after the device name (for example `PitBoss PB1100PSC2 Gri
 | Pellet primer | Run the primer motor (model-dependent) |
 | Light | Grill light (model-dependent) |
 
-Failed commands now show an error in the UI instead of failing silently.
+If the grill rejects a command, Home Assistant shows the reason in the UI (wrong password, grill not connected, grill off).
 
 ---
 
@@ -213,6 +215,8 @@ action:
 | Symptom | Cause | Fix |
 |---|---|---|
 | Setting the temperature fails with "The grill rejected the password" | Stored grill password is wrong | Settings -> Devices & Services -> PitBoss -> Reconfigure, enter the password from the PitBoss app |
+| Commands fail only some of the time with "Unauthorized" | Versions before 2026.9.1 let the password key fall behind the grill's clock | Update to 2026.9.1 or newer |
+| "PitBoss grills cannot be started remotely" or "The grill is off" | Set temperature sent while the grill is off | Start the grill at the controller first |
 | Integration stuck on "Configuring" | Grill off or not reachable at HA startup | Power on the grill and restart the integration |
 | Entities unavailable after grill restart | BLE/WiFi reconnect in progress | Wait ~30 seconds; coordinator will reconnect automatically |
 | WiFi connection drops frequently | Grill firmware enters slow-push mode | Ensure HA has outbound access to the Dansons relay; integration wakes fast mode on startup |
@@ -239,6 +243,8 @@ logger:
 The integration talks to the grill's control board over one of two transports. BLE is fully local. The WiFi path relays through a Dansons-hosted cloud socket, the same relay the official PitBoss app uses; it is not a direct LAN connection.
 
 **WiFi (WebSocket):** The grill firmware runs [Mongoose OS](https://mongoose-os.com) on an ESP32. It connects out to the Dansons WebSocket relay at `wss://socket.dansonscorp.com/to/<grill_id>` and pushes state updates every 5 seconds when active. This integration connects to the same relay endpoint (`socket.dansonscorp.com`, defined in `pytboss/wss.py`) and receives the same push frames, so the WiFi path depends on Dansons cloud availability and HA outbound internet. All grill control goes through `PB.SendMCUCommand` RPCs, which forward raw hex commands to the MCU control board via UART.
+
+**Authentication:** Reading state never needs the grill password. Commands do: each one carries the password encoded with a key derived from the grill's uptime in 10 second buckets, and the firmware accepts only the current or next bucket. The integration reads the uptime once, extrapolates it with a small lead so it never runs behind, and retries a rejected command once with a fresh reading.
 
 **Bluetooth LE:** The grill also exposes the Mongoose OS BLE RPC GATT service. Commands use the same JSON RPC structure sent over GATT write characteristics. State updates are broadcast via the debug log GATT notification channel as hex-encoded frames. This path involves no cloud.
 

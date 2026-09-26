@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026.9.1 (2026-09-26)
+
+Promote 2026.9.0-beta and 2026.9.1-beta to stable, verified live on a PB1100PSC2 over WiFi (0 of 15 authenticated commands rejected; set temperature and probe targets applied on the grill).
+
+### Highlights
+- Grill commands no longer fail with `Unauthorized` when the password is correct.
+- Every entity has a proper name; new Status and Problem sensors.
+- Password validated at setup, reauthentication and Reconfigure to change it.
+- Failed commands show a clear error in the UI.
+- Diagnostics download with the password redacted.
+
+See the two beta entries below for the full list.
+
+### Changed
+- README: Grill ID format, BLE password validation, how command authentication works, and new troubleshooting rows.
+
 ## 2026.9.1-beta (2026-09-26)
 
 ### Fixed
