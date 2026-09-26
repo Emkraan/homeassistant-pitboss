@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from homeassistant.components.light import ColorMode, LightEntity
@@ -12,9 +11,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import PitBossCoordinator
-from .entity import PitBossEntity
-
-_LOGGER = logging.getLogger(__name__)
+from .entity import PitBossControlEntity
 
 
 async def async_setup_entry(
@@ -27,7 +24,7 @@ async def async_setup_entry(
         async_add_entities([GrillLight(coordinator)])
 
 
-class GrillLight(PitBossEntity, LightEntity):
+class GrillLight(PitBossControlEntity, LightEntity):
     """Light entity for the grill's built-in light."""
 
     _attr_translation_key = "grill_light"
@@ -44,13 +41,11 @@ class GrillLight(PitBossEntity, LightEntity):
         return self.coordinator.data.get("lightState", False)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        try:
-            await self.coordinator.api.turn_light_on()
-        except Exception as ex:
-            _LOGGER.error("Failed to turn light on: %s", ex)
+        await self.coordinator.async_command(
+            self.coordinator.api.turn_light_on, optimistic={"lightState": True}
+        )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        try:
-            await self.coordinator.api.turn_light_off()
-        except Exception as ex:
-            _LOGGER.error("Failed to turn light off: %s", ex)
+        await self.coordinator.async_command(
+            self.coordinator.api.turn_light_off, optimistic={"lightState": False}
+        )

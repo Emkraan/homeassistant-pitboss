@@ -5,7 +5,7 @@
 
   [![HACS](https://img.shields.io/badge/HACS-Custom-orange?style=for-the-badge)](https://hacs.xyz)
   [![Release](https://img.shields.io/github/v/release/Emkraan/homeassistant-pitboss?style=for-the-badge)](https://github.com/Emkraan/homeassistant-pitboss/releases)
-  [![HA Version](https://img.shields.io/badge/HA-2024.1.0%2B-blue?style=for-the-badge)](https://www.home-assistant.io)
+  [![HA Version](https://img.shields.io/badge/HA-2025.1.0%2B-blue?style=for-the-badge)](https://www.home-assistant.io)
   [![License](https://img.shields.io/github/license/Emkraan/homeassistant-pitboss?style=for-the-badge)](LICENSE)
 </div>
 
@@ -56,7 +56,7 @@
 
 | Requirement | Detail |
 |---|---|
-| Home Assistant | 2024.1.0 or newer |
+| Home Assistant | 2025.1.0 or newer |
 | HACS | 1.34.0 or newer |
 | Connection | WiFi grill ID **or** Bluetooth LE adapter on your HA host |
 | WiFi path | Reaches the grill through the Dansons WebSocket relay (`socket.dansonscorp.com`); HA needs outbound internet |
@@ -97,7 +97,11 @@ During setup you will be asked to choose a connection type:
 
 - **Grill ID**: the device name as registered in the PitBoss app (e.g. `PBL-MyGrill`). Find it in the app under device settings or your router's DHCP client list.
 - **Grill Model**: select your exact model from the dropdown. This determines which entities are created and what temperature ranges are enforced.
-- **Password** (optional): if you have set a grill password in the app, enter it here. Leave blank otherwise.
+- **Password**: the grill password from the PitBoss app (grill settings). Setup checks it against the grill and refuses a wrong one. Without the correct password, temperatures still read but every change (set temperature, probe targets, shutdown) is rejected by the grill.
+
+### Changing the password later
+
+If the grill rejects the stored password, Home Assistant raises a **Reauthenticate** notification. You can also change it any time from **Settings -> Devices & Services -> PitBoss -> Reconfigure**.
 
 ### Bluetooth LE
 
@@ -108,58 +112,49 @@ During setup you will be asked to choose a connection type:
 
 ## Entities
 
+Names below are shown after the device name (for example `PitBoss PB1100PSC2 Grill temperature`).
+
 ### Sensors
 
-| Entity | Description | Unit |
+| Entity | Description | Default |
 |---|---|---|
-| Grill Temperature | Current grill grate temperature | °F / °C |
-| Grill Set Temperature | Current grill target setpoint | °F / °C |
-| Smoker Temperature | Firebox/smoker actual temperature | °F / °C |
-| Probe 1 to 4 Temperature | Current meat probe readings | °F / °C |
-| Probe 1 to 2 Target | Probe target temperatures | °F / °C |
-| Recipe Step | Current recipe step number | n/a |
-| Recipe Time Remaining | Seconds remaining in current recipe step | s |
+| Status | Off, Igniting, Preheating, At temperature, Cooling down, Error | Enabled |
+| Grill temperature | Current grill temperature | Enabled |
+| Grill set temperature | Current set point | Enabled |
+| Probe 1 to 4 | Meat probe readings (probes beyond the model's count are disabled) | Per model |
+| Smoke cabinet temperature | Only on models that report it | Disabled |
+| Recipe step / Recipe time remaining | App recipe progress | Disabled |
 
 ### Binary Sensors
 
-| Entity | Description |
-|---|---|
-| Module On | Control module powered on |
-| Fan Running | Combustion fan state |
-| Igniter On | Hot rod / igniter state |
-| Auger Running | Auger motor state |
-| Probe 1 to 3 Error | Meat probe fault |
-| High Temp Error | Over-temperature fault |
-| Fan Error | Fan fault |
-| Igniter Error | Igniter fault |
-| Auger Error | Auger motor fault |
-| No Pellets | Pellet hopper empty |
-| Startup Error (ErL) | Startup cycle failure |
+| Entity | Description | Category |
+|---|---|---|
+| Problem | On when any fault is active; `active` attribute lists which | Primary |
+| Pellets low | Hopper empty | Primary |
+| Power | Control module powered on | Primary |
+| Fan / Igniter / Auger | Component running | Diagnostic |
+| Probe 1 to 3 error, Over-temperature, Fan, Igniter, Auger, Startup failure (ErL) | Individual faults | Diagnostic |
 
 ### Climate
 
 | Entity | Description |
 |---|---|
-| Grill | Set target temperature or turn grill off. Remote power-on is not supported, use physical controls. |
+| Grill | Current and target temperature, heating/idle action, set temperature (rounded to 5 degrees and clamped to the model range), turn off. Remote power-on is not supported by the grill. |
 
 ### Number
 
-| Entity | Description | Models |
-|---|---|---|
-| Probe 1 Target Temperature | Set probe 1 alert temperature | All with probe 1 |
-| Probe 2 Target Temperature | Set probe 2 alert temperature | PBA, PBB, and similar |
+| Entity | Description |
+|---|---|
+| Probe 1 target / Probe 2 target | Probe alarm temperature (model-dependent) |
 
-### Switch
+### Switch and Light
 
-| Entity | Description | Models |
-|---|---|---|
-| Primer Motor | Activate/deactivate primer | Models with primer |
+| Entity | Description |
+|---|---|
+| Pellet primer | Run the primer motor (model-dependent) |
+| Light | Grill light (model-dependent) |
 
-### Light
-
-| Entity | Description | Models |
-|---|---|---|
-| Grill Light | Toggle grill light | Models with light |
+Failed commands now show an error in the UI instead of failing silently.
 
 ---
 
@@ -171,8 +166,8 @@ During setup you will be asked to choose a connection type:
 alias: "Grill - Probe 1 at target"
 trigger:
   - platform: numeric_state
-    entity_id: sensor.pitboss_probe1_temp
-    above: sensor.pitboss_probe1_target
+    entity_id: sensor.pitboss_pb1100psc2_probe_1
+    above: number.pitboss_pb1100psc2_probe_1_target
 action:
   - service: notify.mobile_app_your_phone
     data:
@@ -185,7 +180,7 @@ action:
 alias: "Grill - No Pellets Warning"
 trigger:
   - platform: state
-    entity_id: binary_sensor.pitboss_no_pellets
+    entity_id: binary_sensor.pitboss_pb1100psc2_pellets_low
     to: "on"
 action:
   - service: notify.mobile_app_your_phone
@@ -199,14 +194,14 @@ action:
 alias: "Grill - Auto shutdown after 6 hours"
 trigger:
   - platform: state
-    entity_id: climate.pitboss_grill
+    entity_id: climate.pitboss_pb1100psc2
     to: heat
     for:
       hours: 6
 action:
   - service: climate.set_hvac_mode
     target:
-      entity_id: climate.pitboss_grill
+      entity_id: climate.pitboss_pb1100psc2
     data:
       hvac_mode: "off"
 ```
@@ -217,12 +212,15 @@ action:
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| Setting the temperature fails with "The grill rejected the password" | Stored grill password is wrong | Settings -> Devices & Services -> PitBoss -> Reconfigure, enter the password from the PitBoss app |
 | Integration stuck on "Configuring" | Grill off or not reachable at HA startup | Power on the grill and restart the integration |
 | Entities unavailable after grill restart | BLE/WiFi reconnect in progress | Wait ~30 seconds; coordinator will reconnect automatically |
 | WiFi connection drops frequently | Grill firmware enters slow-push mode | Ensure HA has outbound access to the Dansons relay; integration wakes fast mode on startup |
 | Wrong temperature unit | `isFahrenheit` flag from grill | Match the unit setting on the grill's physical display |
 | BLE device not discovered | Grill out of range or HA Bluetooth not configured | Ensure HA has a Bluetooth adapter; move grill closer |
 | Commands timeout | Grill busy or BLE congestion | Will retry on next interaction; check logs for errors |
+
+**Diagnostics:** Download diagnostics from the device page; the password is redacted and `auth_ok` shows whether the grill accepts it.
 
 **Enable debug logging:**
 
@@ -244,7 +242,7 @@ The integration talks to the grill's control board over one of two transports. B
 
 **Bluetooth LE:** The grill also exposes the Mongoose OS BLE RPC GATT service. Commands use the same JSON RPC structure sent over GATT write characteristics. State updates are broadcast via the debug log GATT notification channel as hex-encoded frames. This path involves no cloud.
 
-**State parsing:** The grill sends two frame types: `FE0B` (status: booleans, errors, recipe) and `FE0C` (temperatures: grill, smoker, probes). Parsing and command building are driven by per-model JavaScript functions stored in the vendored `pytboss/grills.json` database. These functions are evaluated at runtime with the `dukpy` JavaScript engine (`from dukpy import evaljs` in `pytboss/grills.py`; `dukpy==0.3.1` in `manifest.json`). The model database is vendored locally, so parsing does not require a live cloud API call, but the `dukpy` dependency and the JS evaluation path are still in use.
+**State parsing:** The grill sends two frame types: `FE0B` (status: booleans, errors, recipe) and `FE0C` (temperatures: grill, smoker, probes). Parsing and command building are driven by per-model JavaScript functions stored in the vendored `pytboss/grills.json` database. These functions are evaluated at runtime with the `dukpy` JavaScript engine (`from dukpy import evaljs` in `pytboss/grills.py`; `dukpy==0.5.1` in `manifest.json`). The model database is vendored locally, so parsing does not require a live cloud API call, but the `dukpy` dependency and the JS evaluation path are still in use.
 
 ---
 

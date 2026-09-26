@@ -11,6 +11,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -18,77 +19,97 @@ from .const import DOMAIN
 from .coordinator import PitBossCoordinator
 from .entity import PitBossEntity
 from .pytboss.grills import StateDict
+from .sensor import ERROR_KEYS
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PitBossBinarySensorDescription(BinarySensorEntityDescription):
     """Describes a PitBoss binary sensor."""
 
-    value_fn: Callable[[StateDict], bool | None] = lambda _: None
+    value_fn: Callable[[StateDict], bool | None]
 
 
 BINARY_SENSOR_DESCRIPTIONS: tuple[PitBossBinarySensorDescription, ...] = (
     PitBossBinarySensorDescription(
+        key="any_problem",
+        translation_key="any_problem",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda d: any(d.get(k) for k in ERROR_KEYS),
+    ),
+    PitBossBinarySensorDescription(
         key="module_on",
         translation_key="module_on",
+        device_class=BinarySensorDeviceClass.POWER,
         value_fn=lambda d: d.get("moduleIsOn", False),
     ),
     PitBossBinarySensorDescription(
         key="fan_state",
         translation_key="fan_state",
-        entity_category=None,
+        device_class=BinarySensorDeviceClass.RUNNING,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: d.get("fanState", False),
     ),
     PitBossBinarySensorDescription(
         key="igniter_state",
         translation_key="igniter_state",
+        device_class=BinarySensorDeviceClass.RUNNING,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: d.get("hotState", False),
     ),
     PitBossBinarySensorDescription(
         key="auger_state",
         translation_key="auger_state",
+        device_class=BinarySensorDeviceClass.RUNNING,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: d.get("motorState", False),
     ),
     PitBossBinarySensorDescription(
         key="err_probe1",
         translation_key="err_probe1",
         device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: d.get("err1", False),
     ),
     PitBossBinarySensorDescription(
         key="err_probe2",
         translation_key="err_probe2",
         device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: d.get("err2", False),
     ),
     PitBossBinarySensorDescription(
         key="err_probe3",
         translation_key="err_probe3",
         device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: d.get("err3", False),
     ),
     PitBossBinarySensorDescription(
         key="err_high_temp",
         translation_key="err_high_temp",
         device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: d.get("highTempErr", False),
     ),
     PitBossBinarySensorDescription(
         key="err_fan",
         translation_key="err_fan",
         device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: d.get("fanErr", False),
     ),
     PitBossBinarySensorDescription(
         key="err_igniter",
         translation_key="err_igniter",
         device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: d.get("hotErr", False),
     ),
     PitBossBinarySensorDescription(
         key="err_auger",
         translation_key="err_auger",
         device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: d.get("motorErr", False),
     ),
     PitBossBinarySensorDescription(
@@ -101,6 +122,7 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[PitBossBinarySensorDescription, ...] = (
         key="err_startup",
         translation_key="err_startup",
         device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: d.get("erL", False),
     ),
 )
@@ -132,6 +154,14 @@ class PitBossBinarySensor(PitBossEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool | None:
-        if self.coordinator.data is None:
+        if not self.coordinator.data:
             return None
-        return self.entity_description.value_fn(self.coordinator.data)
+        return bool(self.entity_description.value_fn(self.coordinator.data))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, list[str]] | None:
+        if self.entity_description.key != "any_problem" or not self.coordinator.data:
+            return None
+        return {
+            "active": [k for k in ERROR_KEYS if self.coordinator.data.get(k)],
+        }

@@ -10,12 +10,17 @@ from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
+from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
 from .const import (
@@ -28,10 +33,56 @@ from .const import (
     PROTOCOL_BLE,
     PROTOCOL_WSS,
 )
-from .pytboss.ble import SERVICE_RPC
+from .coordinator import is_auth_error
+from .pytboss.api import PitBoss
+from .pytboss.ble import SERVICE_RPC, BleConnection
+from .pytboss.exceptions import GrillUnavailable, RPCError
 from .pytboss.grills import get_grills
+from .pytboss.wss import WebSocketConnection
 
 _LOGGER = logging.getLogger(__name__)
+
+
+_PASSWORD_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+
+
+async def async_validate(hass: HomeAssistant, data: dict[str, Any]) -> str | None:
+    """Connect to the grill and run an authenticated read.
+
+    Returns an error key for the form, or None when the grill accepted the
+    password.
+    """
+    if data[CONF_PROTOCOL] == PROTOCOL_WSS:
+        conn = WebSocketConnection(data[CONF_GRILL_ID])
+    else:
+        device = bluetooth.async_ble_device_from_address(
+            hass, data[CONF_ADDRESS], connectable=True
+        )
+        if device is None:
+            return "cannot_connect"
+        conn = BleConnection(device)
+    api = PitBoss(conn, data[CONF_GRILL_MODEL], data.get(CONF_PASSWORD, ""))
+    try:
+        await api.start()
+        await api.get_state()
+    except GrillUnavailable:
+        return "cannot_connect"
+    except RPCError as ex:
+        if is_auth_error(ex):
+            return "invalid_auth"
+        _LOGGER.debug("Validation RPC failed: %s", ex)
+        return "cannot_connect"
+    except TimeoutError:
+        return "cannot_connect"
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("Unexpected error validating the grill")
+        return "unknown"
+    finally:
+        try:
+            await api.stop()
+        except Exception:  # noqa: BLE001
+            pass
+    return None
 
 
 def _grill_model_options() -> list[SelectOptionDict]:
@@ -68,7 +119,7 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle user-initiated setup — choose WiFi or BLE."""
+        """Handle user-initiated setup: choose WiFi or BLE."""
         if user_input is not None:
             self._protocol = user_input[CONF_PROTOCOL]
             if self._protocol == PROTOCOL_WSS:
@@ -84,7 +135,7 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
                             options=[
                                 SelectOptionDict(
                                     value=PROTOCOL_WSS,
-                                    label="WiFi (WebSocket) — preferred",
+                                    label="WiFi (WebSocket), preferred",
                                 ),
                                 SelectOptionDict(
                                     value=PROTOCOL_BLE, label="Bluetooth LE"
@@ -125,9 +176,6 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
                     ),
                 }
             ),
-            description_placeholders={
-                "help": "Find your grill ID in the PitBoss app under device settings. It looks like 'PBL-MyGrillName'."
-            },
         )
 
     async def async_step_ble_pick(
@@ -193,19 +241,66 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
         self,
         user_input: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
-        """Optionally collect the grill password."""
+        """Collect the grill password and check it against the grill."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self._create_entry(user_input.get(CONF_PASSWORD, ""))
+            password = user_input.get(CONF_PASSWORD, "")
+            error = await async_validate(self.hass, self._entry_data(password))
+            if error is None:
+                return self._create_entry(password)
+            errors["base"] = error
 
         return self.async_show_form(
             step_id="password",
-            data_schema=vol.Schema({vol.Optional(CONF_PASSWORD, default=""): str}),
-            description_placeholders={
-                "help": "Leave blank if your grill has no password set."
-            },
+            errors=errors,
+            data_schema=vol.Schema(
+                {vol.Optional(CONF_PASSWORD, default=""): _PASSWORD_SELECTOR}
+            ),
+        )
+
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> ConfigFlowResult:
+        """The grill rejected the stored password."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        return await self._async_password_update("reauth_confirm", user_input)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        return await self._async_password_update("reconfigure", user_input)
+
+    async def _async_password_update(
+        self, step_id: str, user_input: dict[str, Any] | None
+    ) -> ConfigFlowResult:
+        entry = (
+            self._get_reauth_entry()
+            if step_id == "reauth_confirm"
+            else self._get_reconfigure_entry()
+        )
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            data = {**entry.data, CONF_PASSWORD: user_input.get(CONF_PASSWORD, "")}
+            error = await async_validate(self.hass, data)
+            if error is None:
+                return self.async_update_reload_and_abort(entry, data=data)
+            errors["base"] = error
+        return self.async_show_form(
+            step_id=step_id,
+            errors=errors,
+            data_schema=vol.Schema(
+                {vol.Optional(CONF_PASSWORD, default=""): _PASSWORD_SELECTOR}
+            ),
+            description_placeholders={"grill": entry.title},
         )
 
     def _create_entry(self, password: str) -> ConfigFlowResult:
+        title = self._grill_model or "PitBoss Grill"
+        return self.async_create_entry(title=title, data=self._entry_data(password))
+
+    def _entry_data(self, password: str) -> dict[str, Any]:
         data: dict[str, Any] = {
             CONF_PROTOCOL: self._protocol,
             CONF_GRILL_MODEL: self._grill_model,
@@ -215,6 +310,4 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
             data[CONF_GRILL_ID] = self._grill_id
         else:
             data[CONF_ADDRESS] = self._ble_address
-
-        title = self._grill_model or "PitBoss Grill"
-        return self.async_create_entry(title=title, data=data)
+        return data

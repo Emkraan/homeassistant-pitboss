@@ -21,6 +21,9 @@ PING_TIMEOUT = 10.0
 MIN_PROBE_TEMP = 50
 MAX_PROBE_TEMP = 250
 
+# Degrees within the set point at which the grill counts as up to temperature.
+AT_TEMP_TOLERANCE = 15
+
 PLATFORMS = [
     "binary_sensor",
     "climate",

@@ -1,8 +1,7 @@
-"""Number platform for PitBoss grills — probe target temperatures."""
+"""Number platform for PitBoss grills: probe target temperatures."""
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Callable, Coroutine, Any
 
@@ -19,10 +18,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, MAX_PROBE_TEMP, MIN_PROBE_TEMP
 from .coordinator import PitBossCoordinator
-from .entity import PitBossEntity
+from .entity import PitBossControlEntity
 from .pytboss.grills import StateDict
-
-_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -31,8 +28,9 @@ class PitBossNumberDescription(NumberEntityDescription):
 
     value_fn: Callable[[StateDict], float | None] = lambda _: None
     set_fn: Callable[..., Coroutine[Any, Any, Any]] | None = None
-    available_fn: Callable[[StateDict], bool] = (
-        lambda d: d.get("moduleIsOn", False) is True
+    state_key: str = ""
+    available_fn: Callable[[StateDict], bool] = lambda d: (
+        d.get("moduleIsOn", False) is True
     )
 
 
@@ -58,10 +56,9 @@ async def async_setup_entry(
                 native_max_value=MAX_PROBE_TEMP,
                 native_step=1,
                 value_fn=lambda d: d.get("p1Target"),
+                state_key="p1Target",
                 set_fn=lambda v: api.set_probe_temperature(int(v)),
-                available_fn=lambda d: (
-                    d.get("moduleIsOn", False) is True and d.get("p1Temp") is not None
-                ),
+                available_fn=lambda d: d.get("moduleIsOn", False) is True,
             )
         )
 
@@ -76,6 +73,7 @@ async def async_setup_entry(
                 native_max_value=MAX_PROBE_TEMP,
                 native_step=1,
                 value_fn=lambda d: d.get("p2Target"),
+                state_key="p2Target",
                 set_fn=lambda v: api.set_probe_2_temperature(int(v)),
                 available_fn=lambda d: (
                     d.get("moduleIsOn", False) is True and d.get("p2Temp") is not None
@@ -86,7 +84,7 @@ async def async_setup_entry(
     async_add_entities(PitBossNumber(coordinator, desc) for desc in descriptions)
 
 
-class PitBossNumber(PitBossEntity, NumberEntity):
+class PitBossNumber(PitBossControlEntity, NumberEntity):
     """A PitBoss number entity for probe target temperatures."""
 
     entity_description: PitBossNumberDescription
@@ -118,10 +116,10 @@ class PitBossNumber(PitBossEntity, NumberEntity):
         return self.entity_description.value_fn(self.coordinator.data)
 
     async def async_set_native_value(self, value: float) -> None:
-        if self.entity_description.set_fn:
-            try:
-                await self.entity_description.set_fn(value)
-            except Exception as ex:
-                _LOGGER.error(
-                    "Failed to set %s to %s: %s", self.entity_description.key, value, ex
-                )
+        if self.entity_description.set_fn is None:
+            return
+        target = int(value)
+        await self.coordinator.async_command(
+            lambda: self.entity_description.set_fn(target),
+            optimistic={self.entity_description.state_key: target},
+        )
