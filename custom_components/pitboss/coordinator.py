@@ -12,7 +12,7 @@ from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     CONF_ADDRESS,
@@ -47,6 +47,11 @@ class PitBossCoordinator(DataUpdateCoordinator[StateDict]):
     State arrives by push (WebSocket status frames or BLE notifications).
     The periodic update only pings the grill so a dead link is noticed.
     Reading state never needs the grill password; commands do.
+
+    A grill that is powered off cannot be reached (and cannot be powered on
+    remotely, by design). That is normal, not a failure: the coordinator
+    marks the grill offline, entities go unavailable, and data resumes on its
+    own once the grill is switched back on.
     """
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -65,13 +70,26 @@ class PitBossCoordinator(DataUpdateCoordinator[StateDict]):
         self.firmware_version: str | None = None
         # None = not checked yet, True = accepted, False = rejected.
         self.auth_ok: bool | None = None
+        # Whether the grill currently answers pings. False while powered off.
+        self.online = False
 
     async def _async_setup(self) -> None:
         """Set up the API connection. Called once by the first refresh."""
         try:
             await self._start_api()
-        except GrillUnavailable as ex:
-            raise UpdateFailed(f"Grill unavailable: {ex}") from ex
+        except Exception as ex:  # noqa: BLE001
+            # Grill is most likely powered off; retry on the next update.
+            _LOGGER.debug("Grill not reachable at setup, will keep trying: %s", ex)
+            await self._stop_api()
+
+    def _set_offline(self, reason: BaseException) -> StateDict:
+        """Mark the grill offline (normally: powered off) without failing the update."""
+        if self.online:
+            _LOGGER.info("Grill is offline (powered off or out of range): %s", reason)
+        else:
+            _LOGGER.debug("Grill still offline: %s", reason)
+        self.online = False
+        return self.data or {}
 
     async def _start_api(self) -> None:
         await self._stop_api()
@@ -155,6 +173,7 @@ class PitBossCoordinator(DataUpdateCoordinator[StateDict]):
 
     async def _on_state_update(self, state: StateDict) -> None:
         self._last_data_ts = datetime.now()
+        self.online = True
         self.async_set_updated_data(dict(state))
 
     async def _async_update_data(self) -> StateDict:
@@ -162,25 +181,29 @@ class PitBossCoordinator(DataUpdateCoordinator[StateDict]):
         if not self._api_started or self.api is None:
             try:
                 await self._start_api()
-            except GrillUnavailable as ex:
-                raise UpdateFailed(f"Could not connect to grill: {ex}") from ex
+            except Exception as ex:  # noqa: BLE001
+                await self._stop_api()
+                return self._set_offline(ex)
 
         try:
             await self.api.ping(timeout=PING_TIMEOUT)
-        except (NotConnectedError, RPCError, TimeoutError) as ex:
+        except Exception as ex:  # noqa: BLE001
             # The WebSocket transport reconnects on its own; only BLE needs a
             # fresh connection object.
             if self._protocol != PROTOCOL_WSS:
                 self._api_started = False
-            raise UpdateFailed(f"Grill ping failed: {ex}") from ex
-        except Exception as ex:
-            if self._protocol != PROTOCOL_WSS:
-                self._api_started = False
-            raise UpdateFailed(f"Unexpected error pinging grill: {ex}") from ex
+            return self._set_offline(ex)
 
-        stale = self.data is None or (
-            self._last_data_ts is not None
-            and (datetime.now() - self._last_data_ts).total_seconds() > _DATA_STALENESS_THRESHOLD
+        if not self.online:
+            _LOGGER.info("Grill is back online")
+            self.online = True
+            # Force a state refresh so entities recover without waiting for a push.
+            self._last_data_ts = None
+
+        stale = (
+            self.data is None
+            or self._last_data_ts is None
+            or (datetime.now() - self._last_data_ts).total_seconds() > _DATA_STALENESS_THRESHOLD
         )
         if stale and self.auth_ok is not False:
             try:
@@ -188,8 +211,7 @@ class PitBossCoordinator(DataUpdateCoordinator[StateDict]):
                 self._last_data_ts = datetime.now()
                 return {**(self.data or {}), **state}
             except Exception as ex:  # noqa: BLE001
-                if self.data is None and not is_auth_error(ex):
-                    raise UpdateFailed(f"Failed to fetch state: {ex}") from ex
+                # Usually the grill is still booting; the next push or ping fixes it.
                 _LOGGER.debug("State refresh failed: %s", ex)
         if self.data is None:
             # Password rejected and nothing pushed yet: wait for the next push.

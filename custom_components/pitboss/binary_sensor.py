@@ -153,7 +153,17 @@ class PitBossBinarySensor(PitBossEntity, BinarySensorEntity):
         self.entity_description = description
 
     @property
+    def available(self) -> bool:
+        # An unreachable grill is a powered-off grill, so Power reads Off
+        # rather than unavailable.
+        if self.entity_description.key == "module_on" and not self.coordinator.online:
+            return self.coordinator.last_update_success
+        return super().available
+
+    @property
     def is_on(self) -> bool | None:
+        if self.entity_description.key == "module_on" and not self.coordinator.online:
+            return False
         if not self.coordinator.data:
             return None
         return bool(self.entity_description.value_fn(self.coordinator.data))
