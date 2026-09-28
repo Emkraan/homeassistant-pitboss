@@ -30,8 +30,8 @@ class PitBossEntity(CoordinatorEntity[PitBossCoordinator]):
 
     @property
     def available(self) -> bool:
-        """Available only when connected and at least one state frame has arrived."""
-        if not super().available:
+        """Available only while the grill is on, connected, and has sent state."""
+        if not super().available or not self.coordinator.online:
             return False
         api = self.coordinator.api
         if api is None or not api.is_connected():
