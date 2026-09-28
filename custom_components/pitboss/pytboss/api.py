@@ -6,8 +6,8 @@ import asyncio
 import inspect
 import json
 import logging
+from collections.abc import Awaitable, Callable
 from time import monotonic
-from typing import Awaitable, Callable
 
 from .codec import encode, timed_key
 from .config import Config
@@ -88,14 +88,14 @@ class PitBoss:
         )
         try:
             state = StateDict()
-            if status_payload:
-                if new_state := self.spec.control_board.parse_status(status_payload):
-                    state.update(new_state)
-            if temperatures_payload:
-                if new_state := self.spec.control_board.parse_temperatures(
-                    temperatures_payload
-                ):
-                    state.update(new_state)
+            if status_payload and (
+                new_state := self.spec.control_board.parse_status(status_payload)
+            ):
+                state.update(new_state)
+            if temperatures_payload and (
+                new_state := self.spec.control_board.parse_temperatures(temperatures_payload)
+            ):
+                state.update(new_state)
 
             if not state:
                 _LOGGER.debug("Could not parse state payload, ignoring")
@@ -140,9 +140,7 @@ class PitBoss:
     async def _send_authenticated(self, method: str, params: dict) -> dict:
         """Send an authenticated RPC, retrying once on a fresh uptime if rejected."""
         try:
-            return await self._conn.send_command(
-                method, await self._authenticate(params)
-            )
+            return await self._conn.send_command(method, await self._authenticate(params))
         except RPCError as ex:
             if not self._password or "unauthorized" not in str(ex).lower():
                 raise
@@ -196,18 +194,14 @@ class PitBoss:
     async def get_state(self) -> StateDict:
         resp = await self._send_authenticated("PB.GetState", {})
         status = self.spec.control_board.parse_status(resp.get("sc_11", "")) or {}
-        status.update(
-            self.spec.control_board.parse_temperatures(resp.get("sc_12", "")) or {}
-        )
+        status.update(self.spec.control_board.parse_temperatures(resp.get("sc_12", "")) or {})
         return status
 
     async def get_firmware_version(self) -> dict:
         return await self._conn.send_command("PB.GetFirmwareVersion", {})
 
     async def set_mcu_update_timer(self, frequency: int = 2) -> dict:
-        return await self._conn.send_command(
-            "PB.SetMCU_UpdateFrequency", {"frequency": frequency}
-        )
+        return await self._conn.send_command("PB.SetMCU_UpdateFrequency", {"frequency": frequency})
 
     async def set_wifi_update_frequency(self, fast: int = 5, slow: int = 60) -> dict:
         return await self._send_authenticated(
@@ -222,11 +216,7 @@ class PitBoss:
         """Device uptime in seconds, read once and then extrapolated."""
         async with self._uptime_lock:
             now = monotonic()
-            if (
-                refresh
-                or self._last_uptime is None
-                or now - self._last_uptime_check > _UPTIME_TTL
-            ):
+            if refresh or self._last_uptime is None or now - self._last_uptime_check > _UPTIME_TTL:
                 result = await self._conn.send_command("PB.GetTime", {})
                 uptime = result.get("time") if isinstance(result, dict) else None
                 if isinstance(uptime, (int, float)):

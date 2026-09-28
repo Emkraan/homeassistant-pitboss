@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
@@ -23,9 +24,7 @@ class PitBossSwitchDescription(SwitchEntityDescription):
     is_on_fn: Callable[[StateDict], bool] = lambda _: False
     turn_on_fn: Callable[..., Coroutine[Any, Any, Any]] | None = None
     turn_off_fn: Callable[..., Coroutine[Any, Any, Any]] | None = None
-    available_fn: Callable[[StateDict], bool] = lambda d: (
-        d.get("moduleIsOn", False) is True
-    )
+    available_fn: Callable[[StateDict], bool] = lambda d: d.get("moduleIsOn", False) is True
 
 
 async def async_setup_entry(

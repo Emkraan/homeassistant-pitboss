@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Callable
+from collections.abc import Callable
 from uuid import UUID
 
 import bleak_retry_connector
@@ -102,9 +102,7 @@ class BleConnection(Transport):
             raise NotConnectedError("BLE device is not connected")
         payload = json.dumps(cmd)
         async with self._lock:
-            await self._ble_client.write_gatt_char(
-                CHAR_RPC_TX_CTL, _encode_len(len(payload))
-            )
+            await self._ble_client.write_gatt_char(CHAR_RPC_TX_CTL, _encode_len(len(payload)))
             for i in range(0, len(payload), 20):
                 chunk = bytearray(payload[i : i + 20].encode("utf-8"))
                 await self._ble_client.write_gatt_char(CHAR_RPC_DATA, chunk)

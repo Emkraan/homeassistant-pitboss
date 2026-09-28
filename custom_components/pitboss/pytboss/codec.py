@@ -1,5 +1,6 @@
 """Encoding & decoding routines."""
 
+import contextlib
 from math import floor
 from random import randint
 
@@ -45,9 +46,7 @@ def decode(data: bytes, *, key: list[int] = KEY) -> bytes:
         k2 = (i + 1) % len(key)
         key[k2] = ((key[k2] ^ data[i]) + i) & 0xFF
 
-    try:
+    with contextlib.suppress(ValueError):
         ret = ret[ret.index(0xFF) + 1 :]
-    except ValueError:
-        pass
 
     return bytes(ret)
