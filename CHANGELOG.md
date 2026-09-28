@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026.9.2-beta (2026-09-28)
+## 2026.9.2 (2026-09-28)
 
 ### Fixed
 - A powered-off grill no longer puts the integration into "Failed setup, will retry: Grill ping failed". PitBoss grills cannot be reached (or powered on remotely) while off, so this is now treated as a normal offline state: setup succeeds, the Power sensor reads Off, other entities show unavailable, and live data resumes on its own once the grill is switched on. Going offline and coming back are logged at info level instead of as errors.

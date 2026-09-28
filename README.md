@@ -218,7 +218,7 @@ action:
 | Commands fail only some of the time with "Unauthorized" | Versions before 2026.9.1 let the password key fall behind the grill's clock | Update to 2026.9.1 or newer |
 | "PitBoss grills cannot be started remotely" or "The grill is off" | Set temperature sent while the grill is off | Start the grill at the controller first |
 | Integration stuck on "Configuring" | Grill off or not reachable at HA startup | Power on the grill and restart the integration |
-| "Failed setup, will retry: Grill ping failed" | Grill is powered off (older versions only) | Update to 2026.9.2-beta or later. A powered-off grill is now treated as normal: Power reads Off, other entities show unavailable, and data resumes on its own within ~30 seconds of switching the grill on. The grill cannot be powered on remotely, by design. |
+| "Failed setup, will retry: Grill ping failed" | Grill is powered off (older versions only) | Update to 2026.9.2 or later. A powered-off grill is now treated as normal: Power reads Off, other entities show unavailable, and data resumes on its own within ~30 seconds of switching the grill on. The grill cannot be powered on remotely, by design. |
 | Entities unavailable after grill restart | BLE/WiFi reconnect in progress | Wait ~30 seconds; coordinator will reconnect automatically |
 | WiFi connection drops frequently | Grill firmware enters slow-push mode | Ensure HA has outbound access to the Dansons relay; integration wakes fast mode on startup |
 | Wrong temperature unit | `isFahrenheit` flag from grill | Match the unit setting on the grill's physical display |
