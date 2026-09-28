@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from asyncio import AbstractEventLoop, Future, Lock, get_running_loop
 from collections.abc import Awaitable, Callable
 from types import TracebackType
-from typing import Any, Protocol, Self, Type
+from typing import Any, Protocol, Self
 
 from .exceptions import RPCError
 
@@ -48,7 +48,7 @@ class Transport(ABC):
 
     async def __aexit__(
         self,
-        exc_type: Type[BaseException] | None,
+        exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
@@ -95,7 +95,7 @@ class Transport(ABC):
             async with asyncio.timeout(timeout):
                 await self._send_prepared_command(cmd)
                 return await future
-        except (asyncio.TimeoutError, Exception):
+        except (TimeoutError, Exception):
             # Clean up the future so it doesn't linger in the dict.
             async with self._futures_lock:
                 self._rpc_futures.pop(cmd["id"], None)
@@ -112,9 +112,7 @@ class Transport(ABC):
     ) -> None:
         """Sends a command to the device without waiting for a response."""
         async with asyncio.timeout(timeout):
-            await self._send_prepared_command(
-                await self._prepare_command(method, params)
-            )
+            await self._send_prepared_command(await self._prepare_command(method, params))
 
     async def _next_command_id(self) -> int:
         async with self._futures_lock:
@@ -134,9 +132,7 @@ class Transport(ABC):
             return False
         if not future.cancelled() and not future.done():
             if "error" in payload:
-                future.set_exception(
-                    RPCError(payload["error"].get("message", "Unknown error"))
-                )
+                future.set_exception(RPCError(payload["error"].get("message", "Unknown error")))
             else:
                 future.set_result(payload.get("result", {}))
         return True

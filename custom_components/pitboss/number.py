@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
-from typing import Callable, Coroutine, Any
+from typing import Any
 
 from homeassistant.components.number import (
     NumberDeviceClass,
@@ -29,9 +30,7 @@ class PitBossNumberDescription(NumberEntityDescription):
     value_fn: Callable[[StateDict], float | None] = lambda _: None
     set_fn: Callable[..., Coroutine[Any, Any, Any]] | None = None
     state_key: str = ""
-    available_fn: Callable[[StateDict], bool] = lambda d: (
-        d.get("moduleIsOn", False) is True
-    )
+    available_fn: Callable[[StateDict], bool] = lambda d: d.get("moduleIsOn", False) is True
 
 
 async def async_setup_entry(
@@ -105,9 +104,7 @@ class PitBossNumber(PitBossControlEntity, NumberEntity):
 
     @property
     def native_unit_of_measurement(self) -> str:
-        if self.coordinator.data and not self.coordinator.data.get(
-            "isFahrenheit", True
-        ):
+        if self.coordinator.data and not self.coordinator.data.get("isFahrenheit", True):
             return UnitOfTemperature.CELSIUS
         return UnitOfTemperature.FAHRENHEIT
 

@@ -22,9 +22,7 @@ class Config:
 
     async def save_config(self, reboot: bool = True):
         if reboot:
-            await self._conn.send_command_without_answer(
-                "Config.Save", {"reboot": reboot}
-            )
+            await self._conn.send_command_without_answer("Config.Save", {"reboot": reboot})
         else:
             await self._conn.send_command("Config.Save", {"reboot": reboot})
 
@@ -38,9 +36,7 @@ class Config:
         return await self._conn.send_command("Config.Set", _wifi_params(ssid=ssid))
 
     async def set_wifi_password(self, password) -> dict:
-        return await self._conn.send_command(
-            "Config.Set", _wifi_params(password=password)
-        )
+        return await self._conn.send_command("Config.Set", _wifi_params(password=password))
 
 
 def _wifi_params(ssid: str | None = None, password: str | None = None) -> dict:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import re
@@ -159,10 +160,7 @@ class ControlBoard:
     def from_dict(cls, ctrl_dict) -> ControlBoard:
         return cls(
             name=ctrl_dict["name"],
-            commands={
-                c["slug"]: Command.from_dict(c)
-                for c in ctrl_dict["control_board_commands"]
-            },
+            commands={c["slug"]: Command.from_dict(c) for c in ctrl_dict["control_board_commands"]},
             _status_js_func=_scrub_js(ctrl_dict["status_function"]),
             _temperatures_js_func=_scrub_js(ctrl_dict["temperature_function"]),
         )
@@ -202,16 +200,12 @@ class Grill:
     @classmethod
     def from_dict(cls, grill_dict) -> Grill:
         min_temp = None
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             min_temp = int(grill_dict["min_temp"])
-        except (ValueError, TypeError):
-            pass
 
         max_temp = None
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             max_temp = int(grill_dict["max_temp"])
-        except (ValueError, TypeError):
-            pass
 
         return cls(
             name=grill_dict["name"],
@@ -219,9 +213,7 @@ class Grill:
             min_temp=min_temp,
             max_temp=max_temp,
             meat_probes=grill_dict["meat_probes"],
-            temp_increments=list(
-                int(t) for t in grill_dict["temp_increment"].split("/")
-            ),
+            temp_increments=list(int(t) for t in grill_dict["temp_increment"].split("/")),
             json=grill_dict,
             control_board=ControlBoard.from_dict(grill_dict["control_board"]),
         )

@@ -114,9 +114,7 @@ class GrillClimate(PitBossEntity, ClimateEntity):
         if temp is None:
             return
         if not self._data.get("moduleIsOn"):
-            raise ServiceValidationError(
-                translation_domain=DOMAIN, translation_key="grill_off"
-            )
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="grill_off")
         target = int(round(temp / _TEMP_STEP) * _TEMP_STEP)
         target = max(int(self.min_temp), min(int(self.max_temp), target))
         await self.coordinator.async_command(

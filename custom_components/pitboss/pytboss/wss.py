@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from asyncio import AbstractEventLoop, Event, Lock, Task
 from typing import Any
@@ -57,11 +58,11 @@ class WebSocketConnection(Transport):
         try:
             async with asyncio.timeout(_CONNECT_TIMEOUT):
                 await self._subscribed.wait()
-        except asyncio.TimeoutError:
+        except TimeoutError as err:
             self._keep_running = False
             if self._subscribe_task and not self._subscribe_task.done():
                 self._subscribe_task.cancel()
-            raise GrillUnavailable("Timed out waiting for WebSocket connection")
+            raise GrillUnavailable("Timed out waiting for WebSocket connection") from err
 
     async def disconnect(self) -> None:
         """Stops the connection to the device."""
@@ -74,10 +75,8 @@ class WebSocketConnection(Transport):
 
         if self._subscribe_task and not self._subscribe_task.done():
             self._subscribe_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._subscribe_task
-            except asyncio.CancelledError:
-                pass
         self._subscribe_task = None
 
         if self._session_owned and not self._session.closed:
@@ -128,9 +127,7 @@ class WebSocketConnection(Transport):
                         try:
                             payload = msg.json()
                         except Exception:
-                            _LOGGER.warning(
-                                "Received non-JSON WebSocket message; skipping."
-                            )
+                            _LOGGER.warning("Received non-JSON WebSocket message; skipping.")
                             continue
                         _LOGGER.debug("WSS payload: %s", payload)
                         try:
@@ -167,9 +164,8 @@ class WebSocketConnection(Transport):
             await self._on_command_response(payload)
             return
 
-        if payload.get("result"):
-            if self._vdata_callback:
-                await self._vdata_callback(payload["result"])
+        if payload.get("result") and self._vdata_callback:
+            await self._vdata_callback(payload["result"])
 
     def is_connected(self) -> bool:
         """Whether the device is currently connected."""

@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components import bluetooth
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
-from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import (
@@ -55,9 +56,7 @@ async def async_validate(hass: HomeAssistant, data: dict[str, Any]) -> str | Non
     if data[CONF_PROTOCOL] == PROTOCOL_WSS:
         conn = WebSocketConnection(data[CONF_GRILL_ID])
     else:
-        device = bluetooth.async_ble_device_from_address(
-            hass, data[CONF_ADDRESS], connectable=True
-        )
+        device = bluetooth.async_ble_device_from_address(hass, data[CONF_ADDRESS], connectable=True)
         if device is None:
             return "cannot_connect"
         conn = BleConnection(device)
@@ -78,10 +77,8 @@ async def async_validate(hass: HomeAssistant, data: dict[str, Any]) -> str | Non
         _LOGGER.exception("Unexpected error validating the grill")
         return "unknown"
     finally:
-        try:
+        with contextlib.suppress(Exception):
             await api.stop()
-        except Exception:  # noqa: BLE001
-            pass
     return None
 
 
@@ -111,14 +108,10 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
 
         self._ble_address = discovery_info.address
         self._protocol = PROTOCOL_BLE
-        self.context["title_placeholders"] = {
-            "name": discovery_info.name or discovery_info.address
-        }
+        self.context["title_placeholders"] = {"name": discovery_info.name or discovery_info.address}
         return await self.async_step_model()
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle user-initiated setup: choose WiFi or BLE."""
         if user_input is not None:
             self._protocol = user_input[CONF_PROTOCOL]
@@ -137,9 +130,7 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
                                     value=PROTOCOL_WSS,
                                     label="WiFi (WebSocket), preferred",
                                 ),
-                                SelectOptionDict(
-                                    value=PROTOCOL_BLE, label="Bluetooth LE"
-                                ),
+                                SelectOptionDict(value=PROTOCOL_BLE, label="Bluetooth LE"),
                             ],
                             mode=SelectSelectorMode.LIST,
                         )
@@ -148,9 +139,7 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
             ),
         )
 
-    async def async_step_wifi(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_wifi(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Collect the grill ID (device name) for WiFi connection."""
         errors: dict[str, str] = {}
 
@@ -215,9 +204,7 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
             ),
         )
 
-    async def async_step_model(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_model(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Select the grill model."""
         if user_input is not None:
             self._grill_model = user_input[CONF_GRILL_MODEL]
@@ -253,9 +240,7 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="password",
             errors=errors,
-            data_schema=vol.Schema(
-                {vol.Optional(CONF_PASSWORD, default=""): _PASSWORD_SELECTOR}
-            ),
+            data_schema=vol.Schema({vol.Optional(CONF_PASSWORD, default=""): _PASSWORD_SELECTOR}),
         )
 
     async def async_step_reauth(self, entry_data: dict[str, Any]) -> ConfigFlowResult:
@@ -290,9 +275,7 @@ class PitBossConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id=step_id,
             errors=errors,
-            data_schema=vol.Schema(
-                {vol.Optional(CONF_PASSWORD, default=""): _PASSWORD_SELECTOR}
-            ),
+            data_schema=vol.Schema({vol.Optional(CONF_PASSWORD, default=""): _PASSWORD_SELECTOR}),
             description_placeholders={"grill": entry.title},
         )
 

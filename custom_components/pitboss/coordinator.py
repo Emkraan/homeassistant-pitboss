@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import datetime
@@ -98,9 +99,7 @@ class PitBossCoordinator(DataUpdateCoordinator[StateDict]):
         self._api_started = True
 
         try:
-            self.firmware_version = (await api.get_firmware_version()).get(
-                "firmwareVersion"
-            )
+            self.firmware_version = (await api.get_firmware_version()).get("firmwareVersion")
         except Exception as ex:  # noqa: BLE001
             _LOGGER.debug("Could not read firmware version: %s", ex)
 
@@ -181,8 +180,7 @@ class PitBossCoordinator(DataUpdateCoordinator[StateDict]):
 
         stale = self.data is None or (
             self._last_data_ts is not None
-            and (datetime.now() - self._last_data_ts).total_seconds()
-            > _DATA_STALENESS_THRESHOLD
+            and (datetime.now() - self._last_data_ts).total_seconds() > _DATA_STALENESS_THRESHOLD
         )
         if stale and self.auth_ok is not False:
             try:
@@ -197,10 +195,8 @@ class PitBossCoordinator(DataUpdateCoordinator[StateDict]):
             # Password rejected and nothing pushed yet: wait for the next push.
             return {}
         if self._protocol == PROTOCOL_WSS and self.auth_ok and stale:
-            try:
+            with contextlib.suppress(Exception):
                 await self.api.wake_wifi()
-            except Exception:  # noqa: BLE001
-                pass
         return self.data
 
     async def async_command(
@@ -210,9 +206,7 @@ class PitBossCoordinator(DataUpdateCoordinator[StateDict]):
     ) -> None:
         """Run a grill command, turning failures into user-visible errors."""
         if self.api is None or not self.api.is_connected():
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="not_connected"
-            )
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="not_connected")
         try:
             await call()
         except RPCError as ex:
