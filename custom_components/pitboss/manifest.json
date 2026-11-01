@@ -24,7 +24,7 @@
     "pitboss"
   ],
   "requirements": [
-    "dukpy==0.5.1",
+    "dukpy==0.6.0",
     "bleak-retry-connector>=3.4.0"
   ],
   "version": "2026.9.2"
